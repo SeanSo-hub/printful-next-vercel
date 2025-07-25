@@ -1,25 +1,30 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY ;
+  const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
   if (!PRINTFUL_API_KEY) {
-    return NextResponse.json({ error: 'Missing Printful API key' });
+    const res = NextResponse.json({ error: 'Missing Printful API key' }, { status: 500 });
+    res.headers.set('Access-Control-Allow-Origin', 'https://gue12v-0i.myshopify.com');
+    return res;
   }
 
   // Printful Catalog API endpoint for products
   const url = 'https://api.printful.com/products';
 
-  const res = await fetch(url, {
+  const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${PRINTFUL_API_KEY}`,
     },
   });
 
-  if (!res.ok) {
-    return NextResponse.json({ error: 'Failed to fetch catalog' }, { status: res.status });
+  if (!response.ok) {
+    const res = NextResponse.json({ error: 'Failed to fetch catalog' }, { status: response.status });
+    res.headers.set('Access-Control-Allow-Origin', 'https://gue12v-0i.myshopify.com');
+    return res;
   }
 
-  const data = await res.json();
-
-  return NextResponse.json(data.result);
+  const data = await response.json();
+  const res = NextResponse.json(data.result);
+  res.headers.set('Access-Control-Allow-Origin', 'https://gue12v-0i.myshopify.com');
+  return res;
 }
