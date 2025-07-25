@@ -28,3 +28,11 @@ export async function GET() {
   res.headers.set('Access-Control-Allow-Origin', 'https://gue12v-0i.myshopify.com');
   return res;
 }
+
+export async function OPTIONS() {
+  const res = new Response(null, { status: 204 });
+  res.headers.set('Access-Control-Allow-Origin', 'https://gue12v-0i.myshopify.com');
+  res.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  return res;
+}
