@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 const allowedOrigin = 'https://gue12v-0i.myshopify.com';
 
 export async function GET() {
-  const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
+  const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY || 'DmzFX6WgYrQQzdnSGomt6JHBmYpir9chwVLdOeS3';
   if (!PRINTFUL_API_KEY) {
     const res = NextResponse.json({ error: 'Missing Printful API key' }, { status: 500 });
     res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
