@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 
 const PRINTFUL_URL = "https://api.printful.com/products";
-const allowedOrigin = "https://zyh1n4-pd.myshopify.com/"; 
+const allowedOrigin = "https://zyh1n4-pd.myshopify.com";
 
 export async function GET(req: NextRequest) {
     const apiKey = process.env.PRINTFUL_API_KEY || 'UEU3qt73zbJR6Z46IV9LeiaqdlLTHu3LcuwUx82j';
@@ -40,4 +40,16 @@ export async function GET(req: NextRequest) {
             }
         );
     }
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "https://zyh1n4-pd.myshopify.com",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400"
+    }
+  });
 }
