@@ -10,7 +10,7 @@ export async function GET() {
     return res;
   }
 
-  const url = 'https://api.printful.com/products';
+  const url = 'https://api.printful.com/v2/catalog-products';
   let data;
   let response;
   try {
