@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 
-const PRINTFUL_URL = "https://api.printful.com/v2/catalog-products";
+const PRINTFUL_URL = "https://api.printful.com/products";
 const allowedOrigin = "https://zyh1n4-pd.myshopify.com/"; 
 
 export async function GET(req: NextRequest) {
