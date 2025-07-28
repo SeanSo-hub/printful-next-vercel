@@ -30,10 +30,11 @@ export async function GET() {
     });
     
     console.log('Response status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+    console.log('Response ok:', response.ok);
     
     data = await response.json();
     console.log('Response data keys:', Object.keys(data));
+    console.log('Response data:', JSON.stringify(data, null, 2));
     
   } catch (err) {
     console.error('Fetch error:', err);
@@ -64,7 +65,7 @@ export async function GET() {
     console.error('Unexpected data structure:', data);
     const res = NextResponse.json({ 
       error: 'Unexpected response structure', 
-      details: data 
+      details: data
     }, { status: 500 });
     res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
     return res;

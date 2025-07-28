@@ -7,28 +7,34 @@ interface Product {
   id: number;
   name: string;
   thumbnail_url?: string;
-  retail_price?: string;
-  description?: string;
 }
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<object | null>(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
         setError(null);
+        setDebugInfo(null);
         
+        console.log('Fetching products from API...');
         const response = await fetch('/api/printful/catalog');
+        
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log('API Response data:', data);
+        setDebugInfo(data);
         
         if (data.error) {
           throw new Error(data.error);
@@ -36,6 +42,7 @@ export default function Home() {
         
         // Handle the Printful API response structure
         const productList = Array.isArray(data) ? data : (data.result || []);
+        console.log('Processed product list:', productList);
         setProducts(productList);
         
       } catch (err) {
@@ -68,6 +75,12 @@ export default function Home() {
             <strong className="font-bold">Error: </strong>
             <span className="block sm:inline">{error}</span>
           </div>
+          {debugInfo && (
+            <div className="bg-gray-100 border border-gray-400 text-gray-700 px-4 py-3 rounded mb-4 text-left">
+              <strong className="font-bold">Debug Info: </strong>
+              <pre className="text-xs mt-2 overflow-auto">{JSON.stringify(debugInfo, null, 2)}</pre>
+            </div>
+          )}
           <button 
             onClick={() => window.location.reload()} 
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -92,6 +105,16 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* Debug Info */}
+      {debugInfo && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+            <strong className="font-bold">Debug Info: </strong>
+            <pre className="text-xs mt-2 overflow-auto">{JSON.stringify(debugInfo, null, 2)}</pre>
+          </div>
+        </div>
+      )}
 
       {/* Products Grid */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -122,28 +145,11 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Product Info */}
+                {/* Product Name */}
                 <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
                     {product.name}
                   </h3>
-                  
-                  {product.description && (
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-3">
-                      {product.description}
-                    </p>
-                  )}
-                  
-                  {product.retail_price && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-blue-600">
-                        ${product.retail_price}
-                      </span>
-                      <button className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded transition-colors duration-200">
-                        View Details
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
