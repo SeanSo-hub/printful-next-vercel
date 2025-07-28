@@ -1,49 +1,43 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
 
-const ALLOWED_ORIGIN = 'https://zyh1n4-pd.myshopify.com';
+const PRINTFUL_URL = "https://api.printful.com/v2/catalog-products";
+const allowedOrigin = "https://zyh1n4-pd.myshopify.com/"; 
 
-function setCorsHeaders(response: NextResponse): NextResponse {
-  response.headers.set('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
-  response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  response.headers.set('Access-Control-Max-Age', '86400');
-  return response;
-}
-
-export async function GET(request: Request) {
-  const origin = request.headers.get('origin');
-  
-  if (origin !== ALLOWED_ORIGIN) {
-    return setCorsHeaders(NextResponse.json({ error: 'CORS Error' }, { status: 403 }));
-  }
-
-  const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
-  if (!PRINTFUL_API_KEY) {
-    return setCorsHeaders(NextResponse.json({ error: 'Missing API key' }, { status: 500 }));
-  }
-
-  try {
-    const response = await fetch('https://api.printful.com/v2/catalog-products', {
-      headers: { Authorization: `Bearer ${PRINTFUL_API_KEY}` }
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      return setCorsHeaders(NextResponse.json({ error: 'API Error', details: data }, { status: response.status }));
+export async function GET(req: NextRequest) {
+    const apiKey = process.env.PRINTFUL_API_KEY || 'UEU3qt73zbJR6Z46IV9LeiaqdlLTHu3LcuwUx82j';
+    if (!apiKey) {
+        return NextResponse.json({ error: "Missing API key" }, { status: 500 });
     }
 
-    if (!data.result) {
-      return setCorsHeaders(NextResponse.json({ error: 'Invalid response' }, { status: 500 }));
+    try {
+        const res = await axios.get(PRINTFUL_URL, {
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+            },
+            validateStatus: () => true,
+        });
+
+        return NextResponse.json(res.data, {
+            status: res.status, 
+            headers: {
+                'Access-Control-Allow-Origin': allowedOrigin,
+                'Content-Type': 'application/json'
+            }
+        });
+    } catch (err: any) {
+        return NextResponse.json(
+            {
+                error: "Failed to fetch from Printful",
+                details: err.message,
+            },
+            {
+                status: 500, 
+                headers: {
+                    'Access-Control-Allow-Origin': allowedOrigin,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
     }
-
-    return setCorsHeaders(NextResponse.json(data.result));
-    
-  } catch (err) {
-    return setCorsHeaders(NextResponse.json({ error: 'Network error' }, { status: 500 }));
-  }
-}
-
-export async function OPTIONS() {
-  return setCorsHeaders(new NextResponse(null, { status: 204 }));
 }
