@@ -1,0 +1,298 @@
+{% comment %}
+  Printful Catalog Template for Shopify
+  This template fetches products from your Printful API and displays them
+  Usage: Include this in your Shopify theme or create a new page template
+{% endcomment %}
+
+<!DOCTYPE html>
+<html lang="{{ request.locale.iso_code }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }}</title>
+  {{ content_for_header }}
+  
+  <style>
+    .printful-catalog {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .catalog-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .catalog-title {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .catalog-subtitle {
+      font-size: 1.1rem;
+      color: #666;
+    }
+    
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+    
+    .product-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .product-image {
+      width: 100%;
+      height: 280px;
+      object-fit: cover;
+      background: #f8f9fa;
+    }
+    
+    .product-image-placeholder {
+      width: 100%;
+      height: 280px;
+      background: #f8f9fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      color: #ccc;
+    }
+    
+    .product-info {
+      padding: 20px;
+    }
+    
+    .product-name {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #007bff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .retry-button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 15px;
+    }
+    
+    .retry-button:hover {
+      background: #0056b3;
+    }
+    
+    .no-products {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+    
+    .no-products-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+      }
+      
+      .catalog-title {
+        font-size: 2rem;
+      }
+      
+      .printful-catalog {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="printful-catalog">
+    <div class="catalog-header">
+      <h1 class="catalog-title">Printful Products</h1>
+      <p class="catalog-subtitle">Discover our custom merchandise</p>
+    </div>
+    
+    <div id="products-container">
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading products...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const API_ENDPOINT = 'https://printful-next-vercel.vercel.app/api/printful/catalog';
+    
+    // State
+    let products = [];
+    let loading = true;
+    let error = null;
+    
+    // DOM elements
+    const productsContainer = document.getElementById('products-container');
+    
+    // Fetch products from API
+    async function fetchProducts() {
+      try {
+        loading = true;
+        error = null;
+        updateUI();
+        
+        console.log('Fetching products from:', API_ENDPOINT);
+        
+        const response = await fetch(API_ENDPOINT, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('API Response:', data);
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        // Handle the response structure
+        products = Array.isArray(data) ? data : (data.result || []);
+        console.log('Processed products:', products);
+        
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        error = err.message;
+      } finally {
+        loading = false;
+        updateUI();
+      }
+    }
+    
+    // Update the UI based on current state
+    function updateUI() {
+      if (loading) {
+        productsContainer.innerHTML = `
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>Loading products...</p>
+          </div>
+        `;
+        return;
+      }
+      
+      if (error) {
+        productsContainer.innerHTML = `
+          <div class="error">
+            <h3>Error Loading Products</h3>
+            <p>${error}</p>
+            <button class="retry-button" onclick="fetchProducts()">Try Again</button>
+          </div>
+        `;
+        return;
+      }
+      
+      if (products.length === 0) {
+        productsContainer.innerHTML = `
+          <div class="no-products">
+            <div class="no-products-icon">📦</div>
+            <h3>No Products Found</h3>
+            <p>There are no products available at the moment.</p>
+          </div>
+        `;
+        return;
+      }
+      
+      // Render products
+      const productsHTML = products.map(product => `
+        <div class="product-card">
+          ${product.thumbnail_url 
+            ? `<img src="${product.thumbnail_url}" alt="${product.name}" class="product-image" loading="lazy">`
+            : `<div class="product-image-placeholder">🖼️</div>`
+          }
+          <div class="product-info">
+            <h3 class="product-name">${product.name}</h3>
+          </div>
+        </div>
+      `).join('');
+      
+      productsContainer.innerHTML = `
+        <div class="products-grid">
+          ${productsHTML}
+        </div>
+      `;
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      fetchProducts();
+    });
+    
+    // Add to cart functionality (if needed)
+    function addToCart(productId) {
+      // Implement Shopify cart functionality here
+      console.log('Add to cart:', productId);
+    }
+  </script>
+</body>
+</html> 

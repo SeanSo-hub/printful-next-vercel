@@ -1,18 +1,36 @@
 import { NextResponse } from 'next/server';
 
-const allowedOrigin = 'https://gue12v-0i.myshopify.com';
+// Allow multiple Shopify domains
+const allowedOrigins = [
+  'https://zyh1n4-pd.myshopify.com' 
+];
 
-export async function GET() {
+function setCorsHeaders(response: NextResponse, origin: string | null) {
+  const allowedOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  
+  response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
+  response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  response.headers.set('Access-Control-Max-Age', '86400');
+  
+  return response;
+}
+
+export async function GET(request: Request) {
   console.log('API route called');
   
-  const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY || 'DmzFX6WgYrQQzdnSGomt6JHBmYpir9chwVLdOeS3';
+  // Handle CORS preflight
+  const origin = request.headers.get('origin');
+  console.log('Request origin:', origin);
+  console.log('Allowed origins:', allowedOrigins);
+  
+  const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY || 'UEU3qt73zbJR6Z46IV9LeiaqdlLTHu3LcuwUx82j';
   console.log('Using API key:', PRINTFUL_API_KEY.substring(0, 10) + '...');
   
   if (!PRINTFUL_API_KEY) {
     console.error('Missing Printful API key');
     const res = NextResponse.json({ error: 'Missing Printful API key' }, { status: 500 });
-    res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
-    return res;
+    return setCorsHeaders(res, origin);
   }
 
   const url = 'https://api.printful.com/v2/catalog-products';
@@ -44,8 +62,7 @@ export async function GET() {
       url: url,
       timestamp: new Date().toISOString()
     }, { status: 500 });
-    res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
-    return res;
+    return setCorsHeaders(res, origin);
   }
 
   if (!response.ok) {
@@ -56,8 +73,7 @@ export async function GET() {
       status: response.status,
       statusText: response.statusText
     }, { status: response.status });
-    res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
-    return res;
+    return setCorsHeaders(res, origin);
   }
 
   // Check if data.result exists
@@ -67,20 +83,18 @@ export async function GET() {
       error: 'Unexpected response structure', 
       details: data
     }, { status: 500 });
-    res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
-    return res;
+    return setCorsHeaders(res, origin);
   }
 
   console.log('Successfully returning', data.result.length, 'products');
   const res = NextResponse.json(data.result);
-  res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
-  return res;
+  return setCorsHeaders(res, origin);
 }
 
-export async function OPTIONS() {
-  const res = new Response(null, { status: 204 });
-  res.headers.set('Access-Control-Allow-Origin', allowedOrigin);
-  res.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.headers.set('Access-Control-Allow-Headers', 'Content-Type');
-  return res;
+export async function OPTIONS(request: Request) {
+  const origin = request.headers.get('origin');
+  console.log('OPTIONS request from origin:', origin);
+  
+  const res = NextResponse.json(null, { status: 204 });
+  return setCorsHeaders(res, origin);
 }
