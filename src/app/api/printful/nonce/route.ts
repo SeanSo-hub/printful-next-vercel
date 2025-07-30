@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY;
+  const PRINTFUL_API_KEY = process.env.PRINTFUL_API_KEY || 'xyD86qYWF2lZKRUdbOCfelfw8V4OX3Nd0zYnIipf';
   if (!PRINTFUL_API_KEY) {
     return NextResponse.json({ error: 'Missing Printful API key' }, { status: 500 });
   }

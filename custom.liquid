@@ -1,673 +1,423 @@
-{% comment %}
-  Custom Shopify page template for Printful product customization
-  File: templates/page.printful-catalog.liquid
-{% endcomment %}
+<!DOCTYPE html>
+<html lang="{{ request.locale.iso_code }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }}</title>
+  {{ content_for_header }}
+  <style>
+    /* CSS Variables for better maintainability */
+    :root {
+      --primary-color: #007bff;
+      --primary-hover-color: #0056b3;
+      --success-color: #28a745;
+      --success-hover-color: #218838;
+      --text-dark: #333;
+      --text-medium: #666;
+      --text-light: #555;
+      --background-light: #f8f9fa;
+      --background-white: white;
+      --shadow-light: rgba(0, 0, 0, 0.1);
+      --shadow-hover: rgba(0, 0, 0, 0.15);
+      --border-radius-card: 12px;
+      --border-radius-button: 6px;
+      --spacing-base: 10px;
+      --spacing-medium: 30px;
+      --spacing-large: 40px;
+    }
 
-<div class="printful-catalog-container">
-  <div class="catalog-header">
-    <h1>Customize Your Products</h1>
-    <p>Select a product to start customizing with our design tool</p>
-  </div>
+    .printful-catalog {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: var(--spacing-base);
+    }
+    .catalog-header {
+      text-align: center;
+      margin-bottom: var(--spacing-large);
+    }
+    .catalog-title {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: var(--text-dark);
+      margin-bottom: 10px;
+    }
+    .catalog-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-medium);
+    }
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--spacing-medium);
+      margin-bottom: var(--spacing-large);
+    }
+    .product-card {
+      background: var(--background-white);
+      border-radius: var(--border-radius-card);
+      box-shadow: 0 4px 6px var(--shadow-light);
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer; 
+    }
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px var(--shadow-hover);
+    }
+    .product-image {
+      width: 100%;
+      height: 280px;
+      object-fit: contain;
+      background: #f2f3f2;
+    }
+    .product-image-placeholder {
+      width: 100%;
+      height: 280px;
+      background: #f2f3f2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      color: #ccc;
+    }
+    .product-info {
+      padding: var(--spacing-base);
+      text-align: center;
+    }
+    .product-name {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--text-dark);
+      line-height: 1.4;
+    }
+    .loading {
+      text-align: center;
+      padding: 60px var(--spacing-base);
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: var(--spacing-base);
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .error {
+      background: #f8d7da; /* Specific error background */
+      border: 1px solid #f5c6cb; /* Specific error border */
+      color: #721c24; /* Specific error text color */
+      padding: var(--spacing-base);
+      border-radius: 8px;
+      text-align: center;
+      margin: var(--spacing-base) 0;
+    }
+    .error-details {
+        font-size: 0.9em;
+        margin-top: 10px;
+        color: #721c24;
+        word-break: break-all; /* Helps with long error messages */
+    }
+    .retry-button {
+      background: var(--primary-color);
+      color: var(--background-white);
+      border: none;
+      padding: 10px var(--spacing-base);
+      border-radius: var(--border-radius-button);
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 15px;
+      transition: background 0.2s ease;
+    }
+    .retry-button:hover {
+      background: var(--primary-hover-color);
+    }
+    .no-products {
+      text-align: center;
+      padding: 60px var(--spacing-base);
+      color: var(--text-medium);
+    }
+    .no-products-icon {
+      font-size: 4rem;
+      margin-bottom: var(--spacing-base);
+    }
+    @media (max-width: 768px) {
+      .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: var(--spacing-base);
+      }
+      .catalog-title {
+        font-size: 2rem;
+      }
+      .printful-catalog {
+        padding: 15px; /* Slightly less padding on smaller screens */
+      }
+    }
 
-  <!-- Loading State -->
-  <div id="catalog-loading" class="loading-state">
-    <div class="spinner"></div>
-    <p>Loading available products...</p>
-  </div>
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 0; /* Start hidden for transition */
+      visibility: hidden; /* Start hidden for transition */
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    .modal-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+    .modal-content {
+      background: var(--background-white);
+      border-radius: var(--border-radius-card);
+      padding: var(--spacing-medium);
+      max-width: 600px;
+      width: 100%;
+      position: relative;
+      text-align: justify;
+      transform: translateY(20px); 
+      transition: transform 0.3s ease;
+    }
+    .modal-overlay.show .modal-content {
+        transform: translateY(0);
+    }
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-medium);
+      transition: color 0.2s ease;
+    }
+    .modal-close:hover {
+        color: var(--text-dark);
+    }
+    .modal-image img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+      border-radius: 10px;
+    }
+    .modal-title {
+      font-size: 2rem;
+      margin: var(--spacing-base) 0 10px;
+      color: var(--text-dark);
+    }
+    .modal-description {
+      color: var(--text-light);
+      margin-bottom: var(--spacing-base);
+    }
+    .modal-variants {
+      list-style: none;
+      padding: 0;
+      margin-bottom: var(--spacing-base);
+    }
+    .modal-variants li {
+      margin: 5px 0;
+      font-size: 1rem;
+      color: var(--text-dark);
+    }
+    .customize-button {
+      background: var(--success-color);
+      color: var(--background-white);
+      padding: 10px var(--spacing-base);
+      border-radius: var(--border-radius-button);
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .customize-button:hover {
+      background: var(--success-hover-color);
+    }
 
-  <!-- Error State -->
-  <div id="catalog-error" class="error-state" style="display: none;">
-    <div class="error-message">
-      <h3>Unable to load products</h3>
-      <p id="error-text"></p>
-      <button id="retry-btn" class="btn btn-primary">Try Again</button>
+  </style>
+</head>
+
+<body>
+  <div class="printful-catalog">
+    <div class="catalog-header">
+      <h1 class="catalog-title">Printful Products</h1>
+      <p class="catalog-subtitle">Discover our custom merchandise</p>
     </div>
-  </div>
+    <div id="products-container">
+    </div>
 
-  <!-- Product Grid -->
-  <div id="product-grid" class="product-grid" style="display: none;">
-    <!-- Products will be dynamically inserted here -->
-  </div>
-
-  <!-- Product Selection Modal -->
-  <div id="product-modal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="modal-product-name"></h3>
-        <span class="close">&times;</span>
+    <div id="product-modal" class="modal-overlay">
+      <div class="modal-content">
+        <span class="modal-close" role="button" aria-label="Close modal">×</span>
+        <div id="modal-product-image" class="modal-image"></div>
+        <h2 id="modal-product-name" class="modal-title"></h2>
+        <p id="modal-product-description" class="modal-description"></p>
+        <ul id="modal-product-variants" class="modal-variants"></ul>
+        <button id="modal-customize-button" class="customize-button">Customize</button>
       </div>
-      <div class="modal-body">
-        <div class="product-details">
-          <img id="modal-product-image" src="" alt="" />
+    </div>
+
+  </div>
+
+  <script>
+    const API_ENDPOINT = 'https://customizer-app-backend.vercel.app/api/printful/v2/catalog-products';
+    const productsContainer = document.getElementById('products-container');
+    const productModal = document.getElementById('product-modal');
+    const modalCloseButton = productModal.querySelector('.modal-close');
+    const modalProductImage = document.getElementById('modal-product-image');
+    const modalProductName = document.getElementById('modal-product-name');
+    const modalProductDescription = document.getElementById('modal-product-description');
+    const modalProductVariants = document.getElementById('modal-product-variants');
+    const modalCustomizeButton = document.getElementById('modal-customize-button');
+
+    let allProducts = []; // Store fetched products to avoid re-parsing for modal
+
+    async function fetchProducts() {
+      // Always start with loading state
+      updateUI({ products: [], loading: true, error: null });
+
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text(); // Get raw error response
+            throw new Error(`HTTP error! Status: ${response.status} - ${errorText || 'Unknown error'}`);
+        }
+
+        const data = await response.json();
+        // Assume 'data' directly contains the array of products, or it's within 'data.data'
+        allProducts = Array.isArray(data) ? data : (data.data || []); // Update global products array
+        updateUI({ products: allProducts, loading: false, error: null });
+
+      } catch (err) {
+        updateUI({ products: [], loading: false, error: err.message });
+      }
+    }
+
+    function updateUI({ products, loading, error }) {
+      if (loading) {
+        productsContainer.innerHTML = `
+          <div class="loading">
+            <div class="loading-spinner" role="status" aria-label="Loading products"></div>
+            <p>Loading products...</p>
+          </div>`;
+        return;
+      }
+
+      if (error) {
+        productsContainer.innerHTML = `
+          <div class="error" role="alert">
+            <h3>Error Loading Products</h3>
+            <p>We couldn't load the products. Please try again.</p>
+            <p class="error-details">Details: ${error}</p>
+            <button class="retry-button" onclick="fetchProducts()">Try Again</button>
+          </div>`;
+        return;
+      }
+
+      if (!products.length) {
+        productsContainer.innerHTML = `
+          <div class="no-products">
+            <div class="no-products-icon" aria-hidden="true">📦</div>
+            <h3>No Products Found</h3>
+            <p>There are no products available at the moment.</p>
+          </div>`;
+        return;
+      }
+
+      const productsHTML = products.map(product => `
+        <div class="product-card" data-product-id="${product.id}">
+          ${product.image
+            ? `<img src="${product.image}" alt="${product.name}" class="product-image" loading="lazy">`
+            : `<div class="product-image-placeholder" aria-hidden="true">🖼️</div>`}
           <div class="product-info">
-            <p id="modal-product-description"></p>
-            <div class="variant-selector">
-              <h4>Available Options:</h4>
-              <div id="variant-list"></div>
-            </div>
+            <h3 class="product-name">${product.name}</h3>
           </div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button id="customize-btn" class="btn btn-primary">Start Customizing</button>
-        <button id="cancel-btn" class="btn btn-secondary">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<style>
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 20px 0;
-  gap: 8px;
-}
-
-.pagination-button {
-  min-width: 40px;
-  height: 40px;
-  border: 1px solid #ddd;
-  background-color: #fff;
-  color: #333;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-.pagination-button:hover {
-  background-color: #f5f5f5;
-  border-color: #999;
-}
-
-.pagination-info {
-  padding: 0 15px;
-  font-size: 14px;
-  color: #666;
-}
-
-@media (max-width: 768px) {
-  .pagination {
-    flex-wrap: wrap;
-  }
-  
-  .pagination-button {
-    min-width: 36px;
-    height: 36px;
-    font-size: 14px;
-  }
-  
-  .pagination-info {
-    width: 100%;
-    text-align: center;
-    margin-bottom: 10px;
-  }
-}
-/* Catalog Container Styles */
-
-.printful-catalog-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.catalog-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.catalog-header h1 {
-  font-size: 2.5rem;
-  color: #333;
-  margin-bottom: 10px;
-}
-
-.catalog-header p {
-  font-size: 1.5rem;
-  color: #666;
-}
-
-/* Loading State */
-.loading-state {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 20px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Error State */
-.error-state {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.error-message h3 {
-  color: #dc3545;
-  margin-bottom: 10px;
-}
-
-.error-message p {
-  color: #666;
-  margin-bottom: 20px;
-}
-
-/* Product Grid */
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 24px;
-  margin-top: 30px;
-}
-
-.product-card {
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  background: white;
-}
-
-.product-card:hover {
-  border-color: #007bff;
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
-  transform: translateY(-2px);
-}
-
-.product-card img {
-  width: 100%;
-  max-width: 200px;
-  height: 200px;
-  object-fit: cover;
-  border-radius: 8px;
-  margin-bottom: 15px;
-}
-
-.product-card h3 {
-  font-size: 1.7rem;
-  margin-bottom: 8px;
-  color: #333;
-}
-
-.product-card p {
-  color: #666;
-  font-size: 1.2rem;
-  margin-bottom: 15px;
-}
-
-.product-badge {
-  display: inline-block;
-  background: #28a745;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  margin-bottom: 10px;
-}
-
-/* Modal Styles */
-.modal {
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.5);
-
-  /* Flexbox centering */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-content {
-  background-color: white;
-  padding: 0;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 1200px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-
-.modal-header {
-  padding: 20px 30px;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: #333;
-}
-
-.close {
-  font-size: 28px;
-  font-weight: bold;
-  cursor: pointer;
-  color: #999;
-}
-
-.close:hover {
-  color: #333;
-}
-
-.modal-body {
-  padding: 30px;
-}
-
-.product-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
-  align-items: start;
-}
-
-.product-details img {
-  width: 100%;
-  border-radius: 8px;
-}
-
-.variant-selector h4 {
-  margin-bottom: 15px;
-  color: #333;
-}
-
-.variant-item {
-  padding: 10px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  margin-bottom: 8px;
-  font-size: 1.2rem;
-}
-
-.modal-footer {
-  padding: 20px 30px;
-  border-top: 1px solid #e0e0e0;
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-/* Button Styles */
-.btn {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 6px;
-  font-size: 1.7rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.btn-primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #0056b3;
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background-color: #545b62;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .product-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 16px;
-  }
-  
-  .product-details {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  
-  .modal-content {
-    margin: 2% auto;
-    width: 95%;
-  }
-  
-  .catalog-header h1 {
-    font-size: 2rem;
-  }
-}
-</style>
-
-<script>
-class PrintfulCatalogManager {
-  constructor() {
-    this.apiKey = 'Dp9ymUPQcPagNWHzq9Vv2qSFQwpfZ5x927cN3Ir9'; // Set this in theme settings
-    this.baseUrl = 'https://customizer-app-backend.vercel.app/api/printful'; // Updated proxied base URL
-    this.products = [];
-    this.selectedProduct = null;
-    this.paging = null;
-    this.links = null;
-    
-    this.init();
-  }
-
-  init() {
-    this.bindEvents();
-    this.loadCatalog();
-  }
-
-  bindEvents() {
-    // Existing event handlers...
-    
-    // Retry button
-    document.getElementById('retry-btn')?.addEventListener('click', () => {
-      this.loadCatalog();
-    });
-
-    // Modal close events
-    document.querySelector('.close')?.addEventListener('click', () => {
-      this.closeModal();
-    });
-
-    document.getElementById('cancel-btn')?.addEventListener('click', () => {
-      this.closeModal();
-    });
-
-    // Customize button
-    document.getElementById('customize-btn')?.addEventListener('click', () => {
-      this.startCustomization();
-    });
-
-    // Close modal when clicking outside
-    window.addEventListener('click', (e) => {
-      const modal = document.getElementById('product-modal');
-      if (e.target === modal) {
-        this.closeModal();
-      }
-    });
-  }
-
-  async loadCatalog(path = '/v2/catalog-products') {
-    try {
-      this.showLoading();
-      
-      const response = await this.fetchWithFallback(path);
-      
-      console.log('Loaded products:', response);
-      this.products = response.data;
-      this.paging = response.paging;
-      this.links = response._links;
-        
-      this.renderProducts();
-      this.renderPagination();
-    } catch (error) {
-      console.error('Catalog loading error:', error);
-      this.showError(error.message);
-    }
-  }
-
-  extractPathFromPrintfulUrl(url) {
-    if (!url) return '/v2/catalog-products';
-    
-    try {
-      // Parse the URL
-      const parsedUrl = new URL(url);
-      
-      // Get the pathname and search (query parameters)
-      const pathname = parsedUrl.pathname;
-      const search = parsedUrl.search;
-      
-      // Extract just the part after /v2/
-      const pathMatch = pathname.match(/\/v2\/(.*)/);
-      
-      if (pathMatch && pathMatch[1]) {
-        return `/v2/${pathMatch[1]}${search}`;
-      }
-      
-      // Fallback to the original path with search
-      return `${pathname}${search}`;
-    } catch (error) {
-      console.warn('Error parsing URL:', error);
-      // If it's not a valid URL, return as is (assuming it's already a path)
-      return url;
-    }
-  }
-
-  async fetchWithFallback(path) {
-    try {
-      // Ensure path starts with a slash
-      if (path && !path.startsWith('/')) {
-        path = '/' + path;
-      }
-      
-      // If path is a full URL, extract just the path portion
-      if (path && path.includes('api.printful.com')) {
-        path = this.extractPathFromPrintfulUrl(path);
-      }
-      
-      const endpoint = `${this.baseUrl}${path}`;
-      console.log('Fetching from:', endpoint);
-      
-      const response = await fetch(endpoint, {
-        method: 'GET'
-      });
-
-      const result = await response.json();
-      console.log('Fetched catalog data:', result);
-      return result;
-    } catch (error) {
-      console.warn('API fetch error:', error);
-      // Return mock data or throw error
-      throw error;
-    }
-  }
-
-  showLoading() {
-    document.getElementById('catalog-loading').style.display = 'block';
-    document.getElementById('catalog-error').style.display = 'none';
-    document.getElementById('product-grid').style.display = 'none';
-  }
-
-  showError(message) {
-    document.getElementById('catalog-loading').style.display = 'none';
-    document.getElementById('catalog-error').style.display = 'block';
-    document.getElementById('product-grid').style.display = 'none';
-    document.getElementById('error-text').textContent = message;
-  }
-
-  renderProducts() {
-    const grid = document.getElementById('product-grid');
-    const loading = document.getElementById('catalog-loading');
-    const error = document.getElementById('catalog-error');
-
-    loading.style.display = 'none';
-    error.style.display = 'none';
-    grid.style.display = 'grid';
-
-    if (this.products.length === 0) {
-      grid.innerHTML = '<div class="no-products">No products found</div>';
-      return;
-    }
-
-    grid.innerHTML = this.products.map(product => `
-      <div class="product-card" data-product-id="${product.id}">
-        <img src="${product.image}" alt="${product.name}" loading="lazy" />
-        <h3>${product.name}</h3>
-        <p><strong>Brand:</strong> ${product.brand} | <strong>Model:</strong> ${product.model}</p>
-        <p><strong>Variants:</strong> ${product.variant_count}</p>
-      </div>
-    `).join('');
-
-    // Add click handlers
-    grid.querySelectorAll('.product-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        const productId = parseInt(e.currentTarget.dataset.productId);
-        this.showProductDetails(productId);
-      });
-    });
-  }
-
-  renderPagination() {
-    // Check if we have a container for pagination
-    let paginationContainer = document.getElementById('pagination-container');
-    
-    // Create the container if it doesn't exist
-    if (!paginationContainer) {
-      paginationContainer = document.createElement('div');
-      paginationContainer.id = 'pagination-container';
-      paginationContainer.className = 'pagination';
-      
-      // Append after the product grid
-      const productGrid = document.getElementById('product-grid');
-      productGrid.parentNode.insertBefore(paginationContainer, productGrid.nextSibling);
-    }
-    
-    // Clear existing pagination
-    paginationContainer.innerHTML = '';
-    
-    if (!this.links) return;
-    
-    // Create pagination buttons based on available links
-    const buttons = [];
-    
-    // First page button
-    if (this.links.first) {
-      const firstPath = this.extractPathFromPrintfulUrl(this.links.first.href);
-      buttons.push(this.createPaginationButton('«', firstPath, 'Go to first page'));
-    }
-    
-    // Previous page button (we need to calculate this)
-    if (this.paging && this.paging.offset > 0) {
-      const prevOffset = Math.max(0, this.paging.offset - this.paging.limit);
-      const prevPath = `/v2/catalog-products?limit=${this.paging.limit}&offset=${prevOffset}`;
-      buttons.push(this.createPaginationButton('‹', prevPath, 'Go to previous page'));
-    }
-    
-    // Current page indicator
-    if (this.paging) {
-      const currentPage = Math.floor(this.paging.offset / this.paging.limit) + 1;
-      const totalPages = Math.ceil(this.paging.total / this.paging.limit);
-      
-      const pageInfo = document.createElement('span');
-      pageInfo.className = 'pagination-info';
-      pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-      buttons.push(pageInfo);
-    }
-    
-    // Next page button
-    if (this.links.next) {
-      const nextPath = this.extractPathFromPrintfulUrl(this.links.next.href);
-      buttons.push(this.createPaginationButton('›', nextPath, 'Go to next page'));
-    }
-    
-    // Last page button
-    if (this.links.last) {
-      const lastPath = this.extractPathFromPrintfulUrl(this.links.last.href);
-      buttons.push(this.createPaginationButton('»', lastPath, 'Go to last page'));
-    }
-    
-    // Add all buttons to pagination container
-    buttons.forEach(button => paginationContainer.appendChild(button));
-  }
-  
-  createPaginationButton(text, path, title) {
-    const button = document.createElement('button');
-    button.className = 'pagination-button';
-    button.textContent = text;
-    button.title = title;
-    button.setAttribute('data-path', path);
-    
-    button.addEventListener('click', () => {
-      this.loadCatalog(path);
-    });
-    
-    return button;
-  }
-
-  showProductDetails(productId) {
-    const product = this.products.find(p => p.id === productId);
-    if (!product) return;
-
-    this.selectedProduct = product;
-
-    // Populate modal
-    document.getElementById('modal-product-name').textContent = product.name;
-    document.getElementById('modal-product-image').src = product.image;
-    document.getElementById('modal-product-image').alt = product.name;
-    document.getElementById('modal-product-description').innerHTML = `
-      <p><strong>Description:</strong> ${product.description ? product.description.replace(/\n/g, '<br>') : 'No description available'}</p>
-      <p><strong>Brand:</strong> ${product.brand}</p>
-      <p><strong>Model:</strong> ${product.model}</p>
-      <p><strong>Available Variants:</strong> ${product.variant_count}</p>
-    `;
-
-    // Show techniques options
-    const variantList = document.getElementById('variant-list');
-    if (product.techniques && product.techniques.length > 0) {
-      variantList.innerHTML = product.techniques.map(option => `
-        <div class="variant-item">
-          <strong>${option.display_name}</strong>
-        </div>
       `).join('');
-    } else {
-      variantList.innerHTML = '<div class="variant-item">Standard product sizes available</div>';
+
+      productsContainer.innerHTML = `<div class="products-grid">${productsHTML}</div>`;
     }
 
-    // Show modal
-    document.getElementById('product-modal').style.display = 'flex';
-  }
+    // --- Modal Logic ---
+    function openModal(productId) {
+      const product = allProducts.find(p => String(p.id) === String(productId));
 
-  closeModal() {
-    document.getElementById('product-modal').style.display = 'none';
-    this.selectedProduct = null;
-  }
+      if (!product) {
+        console.error('Product not found for ID:', productId, 'in allProducts:', allProducts);
+        return;
+      }
 
-  startCustomization() {
-    if (!this.selectedProduct) return;
+      modalProductImage.innerHTML = product.image
+        ? `<img src="${product.image}" alt="${product.name}" loading="lazy">`
+        : `<div class="product-image-placeholder" aria-hidden="true">🖼️</div>`;
+      modalProductName.textContent = product.name || 'Unnamed Product';
+      modalProductDescription.textContent = product.description || 'No description available.';
 
-    // Store selected product data
-    sessionStorage.setItem('printful_selected_product', JSON.stringify(this.selectedProduct));
+      modalProductVariants.innerHTML = '';
+      if (Array.isArray(product.variants) && product.variants.length) {
+        product.variants.forEach(variant => {
+          const li = document.createElement('li');
+          li.textContent = variant.name || `Variant ID: ${variant.id}`;
+          modalProductVariants.appendChild(li);
+        });
+      } else {
+        modalProductVariants.innerHTML = '<li>No variants available.</li>';
+      }
 
-    // Redirect to customization page or trigger next step
-    // This would typically navigate to the EDM integration
-    console.log('Starting customization for product:', this.selectedProduct);
-    
-    // For now, show an alert - replace with actual customization flow
-    window.location.href = `/pages/customize-product?id=${this.selectedProduct.id}`;
-  }
-}
+      // For printful EDM
+      modalCustomizeButton.onclick = () => {
+      alert(`Customize clicked for Product ID: ${product.id}`);
+      };
 
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-  new PrintfulCatalogManager();
-});
-</script>
+      productModal.classList.add('show');
+    }
+
+    function closeModal() {
+      productModal.classList.remove('show');
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', fetchProducts);
+
+    // Event delegation for product card clicks
+    productsContainer.addEventListener('click', function(event) {
+      const productCard = event.target.closest('.product-card');
+      if (productCard) {
+        const productId = productCard.dataset.productId;
+        if (productId) {
+          openModal(productId);
+        }
+      }
+    });
+
+    // Close modal on button click
+    modalCloseButton.addEventListener('click', closeModal);
+
+    // Close modal if user clicks outside modal-content
+    productModal.addEventListener('click', function (e) {
+      if (e.target === this) closeModal();
+    });
+
+    // Close modal on Escape key press
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && productModal.classList.contains('show')) {
+            closeModal();
+        }
+    });
+
+  </script>
+</body>
+</html>
